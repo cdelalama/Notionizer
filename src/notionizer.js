@@ -31,34 +31,38 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 // main.ts
 const grammy_1 = require("grammy");
-const youtube_sr_1 = require("youtube-sr");
-const ytdl_core_1 = __importDefault(require("ytdl-core"));
 const fs_1 = require("fs");
 const whisper_1 = require("./whisper"); // Import your Whisper API wrapper here
 const dotenv = __importStar(require("dotenv"));
+const play_dl_1 = require("play-dl");
+const stream_1 = require("stream");
 dotenv.config();
-const bot = new grammy_1.Bot(process.env.TELEGRAM_BOT_TOKEN);
+const bot = new grammy_1.Bot(process.env.BOT_TOKEN);
 bot.command('start', (ctx) => ctx.reply('Welcome! Send me a YouTube URL and I will transcribe the video for you.'));
 bot.on('message', (ctx) => __awaiter(void 0, void 0, void 0, function* () {
     if (ctx.message.text) {
         const url = ctx.message.text;
+        console.log('URL received:', url);
         try {
-            const video = yield youtube_sr_1.YouTube.getVideo(url);
-            console.log(video);
-            console.log(video.duration);
-            if (video.duration < 54000000) {
-                const audioStream = (0, ytdl_core_1.default)(url, { filter: 'audioonly' });
-                const audioFile = `./${video.id}.mp3`;
-                audioStream.pipe((0, fs_1.createWriteStream)(audioFile)).on('finish', () => __awaiter(void 0, void 0, void 0, function* () {
+            const videoInfo = yield (0, play_dl_1.video_basic_info)(url);
+            console.log('Video info:', videoInfo);
+            const videoDuration = videoInfo.video_details.durationInSec;
+            if (videoDuration < 5400) {
+                const audioStream = yield (0, play_dl_1.stream)(url, { quality: 0 }); // 0 represents the highest audio quality
+                const audioFile = `./${videoInfo.video_details.id}.mp3`;
+                (0, stream_1.pipeline)(audioStream.stream, (0, fs_1.createWriteStream)(audioFile), (err) => __awaiter(void 0, void 0, void 0, function* () {
+                    if (err) {
+                        ctx.reply('Error saving the audio. Please try again.');
+                        return;
+                    }
+                    // Send a message to the user indicating that the bot is processing the request
+                    yield ctx.reply('Processing your request. This may take a few minutes, please wait...');
                     try {
                         const transcript = yield (0, whisper_1.transcribe)(audioFile); // Use your Whisper API wrapper to transcribe the audio
-                        const transcriptFile = `./${video.id}_transcript.txt`;
+                        const transcriptFile = `./${videoInfo.video_details.id}_transcript.txt`;
                         yield fs_1.promises.writeFile(transcriptFile, transcript);
                         yield ctx.replyWithDocument(new grammy_1.InputFile((0, fs_1.createReadStream)(transcriptFile)));
                         (0, fs_1.unlink)(audioFile, () => { });
@@ -74,6 +78,7 @@ bot.on('message', (ctx) => __awaiter(void 0, void 0, void 0, function* () {
             }
         }
         catch (error) {
+            console.error('Error fetching the video:', error);
             ctx.reply('Error fetching the video. Please check the URL and try again.');
         }
     }
