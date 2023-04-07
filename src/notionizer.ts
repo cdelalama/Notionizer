@@ -31,17 +31,18 @@ bot.on('message', async (ctx) => {
             ctx.reply('Error saving the audio. Please try again.');
             return;
           }
-      
+        
           // Send a message to the user indicating that the bot is processing the request
           await ctx.reply('Processing your request. This may take a few minutes, please wait...');
-      
+        
           try {
-            const transcript = await transcribe(audioFile); // Use your Whisper API wrapper to transcribe the audio
+            const transcript = await transcribe(audioFile);
             const transcriptFile = `./${videoInfo.video_details.id}_transcript.txt`;
-      
+        
             await fsPromises.writeFile(transcriptFile, transcript);
             await ctx.replyWithDocument(new InputFile(createReadStream(transcriptFile)));
-      
+        
+            // Clean up the files
             unlink(audioFile, () => {});
             unlink(transcriptFile, () => {});
           } catch (error) {

@@ -61,10 +61,11 @@ bot.on('message', (ctx) => __awaiter(void 0, void 0, void 0, function* () {
                     // Send a message to the user indicating that the bot is processing the request
                     yield ctx.reply('Processing your request. This may take a few minutes, please wait...');
                     try {
-                        const transcript = yield (0, whisper_1.transcribe)(audioFile); // Use your Whisper API wrapper to transcribe the audio
+                        const transcript = yield (0, whisper_1.transcribe)(audioFile);
                         const transcriptFile = `./${videoInfo.video_details.id}_transcript.txt`;
                         yield fs_1.promises.writeFile(transcriptFile, transcript);
                         yield ctx.replyWithDocument(new grammy_1.InputFile((0, fs_1.createReadStream)(transcriptFile)));
+                        // Clean up the files
                         (0, fs_1.unlink)(audioFile, () => { });
                         (0, fs_1.unlink)(transcriptFile, () => { });
                     }
